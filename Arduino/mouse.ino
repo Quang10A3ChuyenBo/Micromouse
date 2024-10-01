@@ -1,5 +1,5 @@
-#include <ESP32Encoder.h>
-#include <Adafruit_MPU6050.h>
+#include <Arduino/libraries/ESP32Encoder/src/ESP32Encoder.h>
+#include <Arduino/libraries/Adafruit_MPU6050/Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
 Adafruit_MPU6050 mpu;
@@ -22,7 +22,7 @@ ESP32Encoder encoder1;
 
 // Chân của encoder cho động cơ 2
 const int encoderPin1_2 = 21; // Chân C1 kết nối với GPIO 19
-const int encoderPin2_2 = 22; // Chân C2 kết nối với GPIO 21
+const int encoderPin2_2 = 18; // Chân C2 kết nối với GPIO 21
 ESP32Encoder encoder2;
 int STBY = 33; //standby
 
@@ -132,9 +132,35 @@ void loop() {
   // Hiển thị góc Z theo độ (giới hạn từ 0 đến 360)
   Serial.print("Angle Z: ");
   Serial.println(angleZ);
-  delay(100); // Điều chỉnh thời gian lấy mẫu
+  
+  if (distance1 < 20 && distance2 < 20 && distance3 < 20)
+  {
+    stop();
+    delay(100);
+
+    move(1, 255, 1, 0);
+    move(0, 255, 1, 0);
+    delay(100);
+  }
+
+  if (distance1 < 20 || distance2 < 20 || distance3 < 20) { // Nếu có vật cản gần, dừng lại và quay phải
+        stop();
+        delay(100);
+
+       turnByAngle(90);
+
+        stop();
+        delay(100);
+  }
+  else
+  {
+      move(1, 255, 1);
+      move(0, 255, 0);
+  }
+
+  delay(100);
 }
-void move(int motor, int speed, int direction) {
+void move(int motor, int speed, int direction, float angle) {
   //Move specific motor at speed and direction
   //motor: 0 for B 1 for A
   //speed: 0 is off, and 255 is full speed
@@ -164,4 +190,60 @@ void move(int motor, int speed, int direction) {
 void stop() {
   //enable standby
   digitalWrite(STBY, LOW);
+}
+
+void turnByAngle(float targetAngle) {
+  float startAngle = angleZ;
+  float targetZ = startAngle + targetAngle; 
+
+  if (targetZ >= 360) {
+    targetZ -= 360;
+  } else if (targetZ < 0) {
+    targetZ += 360;
+  }
+
+  int direction = (targetAngle > 0) ? 1 : 0;
+
+  // Bắt đầu quay
+  move(1, 200, direction); 
+  move(0, 200, !direction);
+
+  // Liên tục kiểm tra giá trị angleZ cho đến khi đạt góc mong muốn
+  while (true) {
+    sensors_event_t a, g, temp;
+    mpu.getEvent(&a, &g, &temp);
+
+    // Tính thời gian trôi qua từ lần đọc trước
+    unsigned long currentTime = millis();
+    float deltaTime = (currentTime - lastTime) / 1000.0; // Tính bằng giây
+    lastTime = currentTime;
+
+    // Cập nhật góc Z
+    angleZ += g.gyro.z * deltaTime * 180 / PI; // Chuyển từ radian/s sang độ
+
+    // Giới hạn góc Z trong khoảng 0-360 độ
+    if (angleZ < 0) {
+      angleZ += 360;
+    } else if (angleZ >= 360) {
+      angleZ -= 360;
+    }
+
+    // Hiển thị giá trị góc hiện tại
+    Serial.print("Angle Z: ");
+    Serial.println(angleZ);
+
+    // Điều kiện để dừng khi đã đạt đến góc mục tiêu
+    if (direction == 1) {
+      if (angleZ >= targetZ && (angleZ - startAngle) >= targetAngle) {
+        break;
+      }
+    } else { 
+      if (angleZ <= targetZ && (startAngle - angleZ) >= -targetAngle) {
+        break;
+      }
+    }
+  }
+
+  stop(); // Dừng sau khi quay đủ góc
+  delay(500); // Tạm dừng một chút sau khi quay
 }
