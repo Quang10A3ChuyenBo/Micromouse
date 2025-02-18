@@ -72,19 +72,23 @@ void Right_wheel(int control, int speed) {
     }
 }
 
-float getYaw()
-{
+float getYaw() {
     int16_t ax, ay, az, gx, gy, gz;
     mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
 
     unsigned long currentTime = millis();
     float dt = (currentTime - lastTime) / 1000.0;
+    
+    if (dt <= 0) return yaw; // Avoid division by zero
+    
     lastTime = currentTime;
 
-    float gZ = gz / 131.0;
-    yaw = fmod(yaw + gZ * dt + 360, 360);
+    float gZ = gz / 131.0; // Convert raw gyro data to degrees/sec
+    yaw = fmod(yaw + gZ * dt + 360, 360); // Keep yaw in 0-360 range
+
     return yaw;
 }
+
 
 void resetYaw()
 {
@@ -97,7 +101,6 @@ void di_thang(int speed) {
     Left_wheel(LUI, speed);
 }
 void turnRight(int speed, float angle, float start){
-  resetYaw();
   float cay = getYaw();
   while (cay - start < angle)
   {
@@ -110,7 +113,6 @@ void turnRight(int speed, float angle, float start){
 
 // Hàm rẽ trái
 void turnLeft(int speed, float angle, float start) {
-  resetYaw();
   float cay = getYaw();
   while (start - cay  < angle)
   {
@@ -169,6 +171,9 @@ void setup() {
     encoder1.attachHalfQuad(encoderPin1_1, encoderPin2_1);
     encoder2.attachHalfQuad(encoderPin1_2, encoderPin2_2);
 
+    encoder1.setCount(0);
+    encoder2.setCount(0);
+
     tcaSelect(2);
     if (!sensor1.begin()) Serial.println("VL53L0X #1 failed!");
 
@@ -198,13 +203,14 @@ void loop() {
 
     long enc1 = encoder1.getCount();
     long enc2 = encoder2.getCount();
+    yaw = getYaw()+2;
 
     display.clearDisplay();
     display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
     display.setCursor(0, 0);
     display.print("Yaw (Z): "); display.println(yaw);
-    display.print("Enc1: "); display.print(enc1);
+    display.print(" Enc1: "); display.print(enc1);
     display.print(" Enc2: "); display.println(enc2);
     display.print("D1: "); display.print(dist1);
     display.print("cm D2: "); display.print(dist2);
@@ -221,7 +227,7 @@ void loop() {
     Serial.println("cm");
 
     // Constants
-    const float WALL_THRESHOLD = 30.0;
+    const float WALL_THRESHOLD = 3.0;
     const int TURN_ANGLE = 90;
     const int UNEXPLORED = 0;
     const int EXPLORED = 1;
@@ -242,7 +248,7 @@ void loop() {
 
         std::pair<std::string, int> backtrackAction = s.top();
         s.pop();
-        start = getYaw();
+        start = yaw;
 
         if (backtrackAction.first == "re_phai") {
             turnLeft(speed, TURN_ANGLE, start); // Turn Left
@@ -260,7 +266,7 @@ void loop() {
             Serial.println("Moving forward");
         } else if (canGoLeft) {
             s.push(std::make_pair("re_phai", 1)); // Corrected Push for backtracking
-            start = getYaw();
+            start = yaw;
             turnLeft(speed, TURN_ANGLE, start);
             Serial.println("Turning Left");
         } else if (canGoRight) {
