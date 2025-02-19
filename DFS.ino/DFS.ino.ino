@@ -37,16 +37,8 @@ float yaw = 0;
 unsigned long lastTime = 0;
 
 std::stack<std::pair<int,int> > cellStack;
-int speed = 160;
+int speed = 120;
 
-const int BUTTON1_PIN = 17;
-const int BUTTON2_PIN = 34;
-// Enums for Modes
-enum RobotMode {
-  IDLE,
-  MAPPING
-};
-RobotMode currentMode = IDLE;
 
 const int MAZE_SIZE = 16;          
 const int CELL_SIZE = 160;        
@@ -71,7 +63,7 @@ int cellOrder = 0;
 int currentCellX = -1;
 int currentCellY = -1;
 
-const float WALL_THRESHOLD = 30.0;  
+const float WALL_THRESHOLD = 3.0;  
 const int TURN_ANGLE = 90;
 
 void tcaSelect(uint8_t channel) {
@@ -150,9 +142,9 @@ void stopMovement() {
 }
 
 // Xe đi thẳng
-void di_thang(int speed) {
-    Right_wheel(TIEN, speed);
-    Left_wheel(LUI, speed);
+void di_thang(int spd) {
+  Right_wheel(TIEN, spd-20);
+  Left_wheel(LUI, spd-20);
 }
 
 float angleDifference(float start, float current) {
@@ -165,8 +157,8 @@ float angleDifference(float start, float current) {
 void turnRight(int spd, float targetAngle, float startYaw) {
   float currentYaw = getYaw();
   while(angleDifference(startYaw, currentYaw) < targetAngle) {
-    Right_wheel(TIEN, spd);
-    Left_wheel(TIEN, spd);
+    Right_wheel(TIEN, spd-20);
+    Left_wheel(TIEN, spd-20);
     delay(10);
     currentYaw = getYaw();
   }
@@ -177,8 +169,8 @@ void turnRight(int spd, float targetAngle, float startYaw) {
 void turnLeft(int spd, float targetAngle, float startYaw) {
   float currentYaw = getYaw();
   while(angleDifference(startYaw, currentYaw) < targetAngle) {
-    Right_wheel(LUI, spd);
-    Left_wheel(LUI, spd);
+    Right_wheel(LUI, spd-20);
+    Left_wheel(LUI, spd-20);
     delay(10);
     currentYaw = getYaw();
   }
@@ -346,8 +338,6 @@ void setup() {
 
     lastTime = millis();
 
-    pinMode(BUTTON1_PIN, INPUT_PULLUP); 
-    pinMode(BUTTON2_PIN, INPUT_PULLUP); 
 
     initialEnc1 = encoder1.getCount();
     initialEnc2 = encoder2.getCount();
@@ -359,16 +349,19 @@ void loop() {
   VL53L0X_RangingMeasurementData_t measure1, measure2, measure3;
 
   tcaSelect(2);
+  delay(20);
   sensor1.rangingTest(&measure1, false);
-  int dist1 = measure1.RangeMilliMeter;
+  int dist1 = measure1.RangeMilliMeter/10;
 
   tcaSelect(6);
+  delay(20);
   sensor2.rangingTest(&measure2, false);
-  int dist2 = measure2.RangeMilliMeter;
+  int dist2 = measure2.RangeMilliMeter/10;
 
   tcaSelect(7);
+  delay(20);
   sensor3.rangingTest(&measure3, false);
-  int dist3 = measure3.RangeMilliMeter;
+  int dist3 = measure3.RangeMilliMeter/10;
 
   updateRobotPosition();
 
@@ -391,26 +384,6 @@ void loop() {
   Serial.print(" mm D2: "); Serial.print(dist2);
   Serial.print(" mm D3: "); Serial.println(dist3);
 
-  if (readButton(BUTTON1_PIN)) {
-    currentMode = (currentMode == IDLE) ? MAPPING : IDLE;
-    Serial.println((currentMode == MAPPING) ? "Switching to MAPPING mode" : "Switching to IDLE mode");
-    delay(200);
-  }
-  if (readButton(BUTTON2_PIN)) {
-    robotX = 0.0;
-    robotY = 0.0;
-    initialEnc1 = encoder1.getCount();
-    initialEnc2 = encoder2.getCount();
-    initialHeadingValue = getYaw();
-  }
-  
-  switch (currentMode) {
-    case IDLE:
-      stopMovement();
-      break;
-    case MAPPING:
-      dfsDecision(dist1, dist2, dist3);
-      break;
-  }
-  delay(50);
+  dfsDecision(dist1, dist2, dist3);
+  delay(90);
 }
