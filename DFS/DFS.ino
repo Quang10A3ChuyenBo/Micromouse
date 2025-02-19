@@ -1,6 +1,6 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>         mm   
+#include <Adafruit_SSD1306.h>   
 #include <MPU6050.h>
 #include <ESP32Encoder.h>
 #include <Adafruit_VL53L0X.h>
@@ -42,7 +42,7 @@ int speed = 160;
 
 const int MAZE_SIZE = 16;          
 const int CELL_SIZE = 160;        
-const float WHEEL_DIAMETER = 34.0;   
+const float WHEEL_DIAMETER = 34.0;// Đường kính
 const float ENCODER_TICK_PER_REV = 107.0;
 const float WHEEL_BASE = 100.0;// Khoảng cách giữa 2 bánh -> độ rộng xe (có gì sửa lại giúp)     
 
@@ -72,19 +72,6 @@ void tcaSelect(uint8_t channel) {
     Wire.endTransmission();
 }
 
-bool readButton(int pin) {
-  static unsigned long lastDebounceTime[10] = {0};
-  static bool buttonState[10] = {HIGH};
-  int index = pin;
-  bool reading = digitalRead(pin);
-  if (reading != buttonState[index]) {
-    lastDebounceTime[index] = millis();
-  }
-  if ((millis() - lastDebounceTime[index]) > 50) {
-    buttonState[index] = reading;
-  }
-  return buttonState[index] == LOW;
-}
 
 // Điều khiển động cơ bên trái
 void Left_wheel(int control, int speed) {
