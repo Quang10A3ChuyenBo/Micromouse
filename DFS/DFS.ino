@@ -37,18 +37,18 @@ float yaw = 0;
 unsigned long lastTime = 0;
 
 std::stack<std::pair<int,int> > cellStack;
-int speed = 120;
+int speed = 160;
 
 
 const int MAZE_SIZE = 16;          
 const int CELL_SIZE = 160;        
-const float WHEEL_DIAMETER = 60.0;   
-const float ENCODER_TICK_PER_REV = 600.0;
-const float WHEEL_BASE = 100.0;     
+const float WHEEL_DIAMETER = 34.0;   
+const float ENCODER_TICK_PER_REV = 107.0;
+const float WHEEL_BASE = 100.0;// Khoảng cách giữa 2 bánh -> độ rộng xe (có gì sửa lại giúp)     
 
 float robotX = 0.0;       
 float robotY = 0.0;       
-float robotHeading = 0.0;  
+float robotHeading = 0.0;  // Hướng đi tính bằng độ (0 = Bắc)
 long initialEnc1 = 0;
 long initialEnc2 = 0;
 float initialHeadingValue = 0.0;
@@ -60,11 +60,11 @@ struct Cell {
 };
 Cell maze[MAZE_SIZE+5][MAZE_SIZE+5];
 int cellOrder = 0;
-int currentCellX = -1;
+int currentCellX = -1; // không đảm bảo vạch xuất phát ở góc nào nên (-1,-1)
 int currentCellY = -1;
 
-const float WALL_THRESHOLD = 3.0;  
-const int TURN_ANGLE = 90;
+const float WALL_THRESHOLD = 3.0;  // Ngưỡng tường: 3 cm (đã chuyển laser sang cm)
+const int TURN_ANGLE = 90;         // Góc quay 90 độ
 
 void tcaSelect(uint8_t channel) {
     Wire.beginTransmission(TCA9548A_ADDR);
@@ -143,24 +143,25 @@ void stopMovement() {
 
 // Xe đi thẳng
 void di_thang(int spd) {
-  Right_wheel(TIEN, spd-20);
-  Left_wheel(LUI, spd-20);
+  Right_wheel(TIEN, spd);
+  Left_wheel(LUI, spd);
 }
-
+// Hàm tính hiệu số góc (hỗ trợ xử lý góc quay tròn)
 float angleDifference(float start, float current) {
   float diff = current - start;
   while(diff > 180) diff -= 360;
   while(diff < -180) diff += 360;
-  return fabs(diff);
+  return fabs(diff); // Trả về giá trị tuyệt đối của chênh lệch
 }
 
 void turnRight(int spd, float targetAngle, float startYaw) {
   float currentYaw = getYaw();
+  // Bắng cách cho quay đến khi nào chênh với góc yaw tính được lúc xe nhận lệnh quay (=90)
   while(angleDifference(startYaw, currentYaw) < targetAngle) {
-    Right_wheel(TIEN, spd-20);
-    Left_wheel(TIEN, spd-20);
-    delay(10);
-    currentYaw = getYaw();
+    Right_wheel(TIEN, spd-60); // xóa đoạn delay và cho bánh quay chậm lại -> để xe kịp thời tính độ yaw chuẩn hơn
+    Left_wheel(TIEN, spd-60);
+    currentYaw = getYaw(); // Đoạn này mới, check xem có hiệu quả thật không
+    //delay(10);
   }
   stopMovement();
 }
@@ -169,10 +170,10 @@ void turnRight(int spd, float targetAngle, float startYaw) {
 void turnLeft(int spd, float targetAngle, float startYaw) {
   float currentYaw = getYaw();
   while(angleDifference(startYaw, currentYaw) < targetAngle) {
-    Right_wheel(LUI, spd-20);
-    Left_wheel(LUI, spd-20);
-    delay(10);
+    Right_wheel(LUI, spd-60);
+    Left_wheel(LUI, spd-60);
     currentYaw = getYaw();
+    //delay(10);
   }
   stopMovement();
 }
@@ -187,29 +188,41 @@ void turnLeft(int spd, float targetAngle, float startYaw) {
 //}
 
 
+// Hàm cập nhật vị trí và hướng đi của robot dựa trên số xung encoder
 void updateRobotPosition() {
   long currentEnc1 = encoder1.getCount();
   long currentEnc2 = encoder2.getCount();
-  long deltaEnc1 = currentEnc1 - initialEnc1;
-  long deltaEnc2 = currentEnc2 - initialEnc2;
-  float dist1 = (deltaEnc1 / ENCODER_TICK_PER_REV) * PI * WHEEL_DIAMETER;
-  float dist2 = (deltaEnc2 / ENCODER_TICK_PER_REV) * PI * WHEEL_DIAMETER;
-  float deltaHeading = (dist1 - dist2) / WHEEL_BASE;
+  long deltaEnc1 = currentEnc1 - initialEnc1; // Số xung đã thay đổi bánh trái
+  long deltaEnc2 = currentEnc2 - initialEnc2; // Số xung đã thay đổi bánh phải
+  
+  // Tính khoảng cách di chuyển của mỗi bánh: (số xung / xung/vòng quay)* (chu vi bánh xe)
+  float dist1 = (deltaEnc1 / ENCODER_TICK_PER_REV) * PI * WHEEL_DIAMETER; // mm
+  float dist2 = (deltaEnc2 / ENCODER_TICK_PER_REV) * PI * WHEEL_DIAMETER; // mm
+  
+  // Tính chênh lệch khoảng cách để ước lượng góc quay (theo công thức đơn giản)
+  float deltaHeading = (dist1 - dist2) / WHEEL_BASE; // deltaHeading tính bằng radian
+  // Cập nhật hướng đi mới dựa trên giá trị ban đầu và deltaHeading (chuyển đổi sang độ)
   robotHeading = initialHeadingValue + deltaHeading * 180 / PI;
   robotHeading = fmod(robotHeading + 360.0, 360.0);
+  
+  // Tính khoảng cách trung bình di chuyển
   float distance = (dist1 + dist2) / 2.0;
+  // Cập nhật vị trí x, y theo công thức chuyển đổi tọa độ từ độ
   robotX += distance * cos(robotHeading * PI / 180.0);
   robotY += distance * sin(robotHeading * PI / 180.0);
 }
 
+// Đảm bảo xe vẫn trong mê cung
 bool isValidCell(int x, int y) {
   return (x >= 0 && x < MAZE_SIZE && y >= 0 && y < MAZE_SIZE);
 }
 
 void dfsDecision(int dist1, int dist2, int dist3) {
+   // Tính toán chỉ số ô hiện tại dựa trên vị trí (cộng offset 1200 mm để điều chỉnh gốc tọa độ)
   int cellX = (int)((robotX + 1200) / CELL_SIZE);
   int cellY = (int)((robotY + 1200) / CELL_SIZE);
   
+  // Nếu robot vừa mới bước vào một ô mới, lưu ô cũ vào stack và đánh dấu ô mới
   if(cellX != currentCellX || cellY != currentCellY) {
     if(currentCellX != -1 && currentCellY != -1) {
       cellStack.push({currentCellX, currentCellY});
@@ -217,7 +230,7 @@ void dfsDecision(int dist1, int dist2, int dist3) {
     currentCellX = cellX;
     currentCellY = cellY;
     maze[cellX][cellY].visited = true;
-    maze[cellX][cellY].order = ++cellOrder;
+    maze[cellX][cellY].order = ++cellOrder;  // Đánh số thứ tự các ô
     Serial.print("Entered cell: ");
     Serial.print(cellX);
     Serial.print(", ");
@@ -229,15 +242,30 @@ void dfsDecision(int dist1, int dist2, int dist3) {
   bool availRight   = (dist1 > WALL_THRESHOLD);
   bool availLeft    = (dist3 > WALL_THRESHOLD);
   
+  // Khai báo biến để lưu chỉ số của các ô liền kề:
+  // nx, ny: ô phía trước so với robot
+  // rx, ry: ô bên phải
+  // lx, ly: ô bên trái
   float h = robotHeading;
   int nx, ny, rx, ry, lx, ly;
   
+  /**
+  Đoạn code xác định vị trí của các ô liền kề (forward, right, left) 
+  dựa trên góc hiện tại của robot. Các giá trị so sánh (như 45, 135, 225, 315) 
+  được dùng để chia đều vòng tròn 360° thành bốn hướng chính (Bắc, Đông, Nam, Tây)
+  **/
+  // Nếu h nằm trong khoảng [315,360) hoặc [0,45): xem như hướng Bắc => ô phía trước là ô có chỉ số y tăng lên (ny = currentCellY + 1)
   if ((h >= 315 || h < 45))         { nx = currentCellX;     ny = currentCellY + 1; }
+  // Nếu h nằm trong khoảng [45,135): xem như hướng Đông => ô phía trước là ô có chỉ số x tăng lên (nx = currentCellX + 1)
   else if (h >= 45 && h < 135)        { nx = currentCellX + 1; ny = currentCellY;     }
+  // Nếu h nằm trong khoảng [135,225): xem như hướng Nam => ô phía trước là ô có chỉ số y giảm (ny = currentCellY - 1)
   else if (h >= 135 && h < 225)       { nx = currentCellX;     ny = currentCellY - 1; }
+  // Nếu h nằm trong khoảng [225,315): xem như hướng Tây => ô phía trước là ô có chỉ số x giảm (nx = currentCellX - 1)
   else                              { nx = currentCellX - 1; ny = currentCellY;     }
+  // Kiểm tra xem ô phía trước có hợp lệ (trong giới hạn mê cung) và chưa được đánh dấu chưa
   bool forwardUnvisited = isValidCell(nx, ny) && !maze[nx][ny].visited;
-  
+
+  // Tương tự nhưng tính nếu xe rẽ phải
   float hRight = fmod(h + 90, 360);
   if ((hRight >= 315 || hRight < 45))  { rx = currentCellX;     ry = currentCellY + 1; }
   else if (hRight >= 45 && hRight < 135){ rx = currentCellX + 1; ry = currentCellY;     }
@@ -245,6 +273,7 @@ void dfsDecision(int dist1, int dist2, int dist3) {
   else                              { rx = currentCellX - 1; ry = currentCellY;     }
   bool rightUnvisited = isValidCell(rx, ry) && !maze[rx][ry].visited;
   
+  // Tương tự nhưng tính nếu xe rẽ trái
   float hLeft = fmod(h + 270, 360);
   if ((hLeft >= 315 || hLeft < 45))   { lx = currentCellX;     ly = currentCellY + 1; }
   else if (hLeft >= 45 && hLeft < 135)  { lx = currentCellX + 1; ly = currentCellY;     }
@@ -266,6 +295,7 @@ void dfsDecision(int dist1, int dist2, int dist3) {
     turnLeft(speed, TURN_ANGLE, startYaw);
     di_thang(speed);
   } else {
+    // Nếu không còn lựa chọn, thực hiện backtracking (lùi về ô đã lưu trong stack)
     if (!cellStack.empty()) {
       std::pair<int,int> prevCell = cellStack.top();
       cellStack.pop();
@@ -275,6 +305,8 @@ void dfsDecision(int dist1, int dist2, int dist3) {
       Serial.println(prevCell.second);
       int dx = prevCell.first - currentCellX;
       int dy = prevCell.second - currentCellY;
+      
+      // Bằng cách tính góc bù để tính độ quay để quay lại cell trước
       float targetAngle;
       if (dx == 0 && dy == 1)       targetAngle = 0;
       else if (dx == 1 && dy == 0)  targetAngle = 90;
@@ -349,17 +381,17 @@ void loop() {
   VL53L0X_RangingMeasurementData_t measure1, measure2, measure3;
 
   tcaSelect(2);
-  delay(20);
+  delay(10);
   sensor1.rangingTest(&measure1, false);
   int dist1 = measure1.RangeMilliMeter/10;
 
   tcaSelect(6);
-  delay(20);
+  delay(10);
   sensor2.rangingTest(&measure2, false);
   int dist2 = measure2.RangeMilliMeter/10;
 
   tcaSelect(7);
-  delay(20);
+  delay(10);
   sensor3.rangingTest(&measure3, false);
   int dist3 = measure3.RangeMilliMeter/10;
 
@@ -385,5 +417,5 @@ void loop() {
   Serial.print(" mm D3: "); Serial.println(dist3);
 
   dfsDecision(dist1, dist2, dist3);
-  delay(90);
+  delay(50);
 }
