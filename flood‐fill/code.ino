@@ -42,16 +42,15 @@ std::stack<std::pair<int,int>> cellStack;  // Stack for DFS backtracking
 int speed = 120;
 
 // Maze & robot geometry parameters
-const int MAZE_SIZE = 16;          // Maze grid: 16x16 cells
-const int CELL_SIZE = 160;         // Each cell is 160 mm (16 cm)
-const float WHEEL_DIAMETER = 34;   // Wheel diameter in mm
-// NOTE: Using measured encoder pulses: approx. 107 pulses per revolution
+const int MAZE_SIZE = 16;        
+const int CELL_SIZE = 160;       
+const float WHEEL_DIAMETER = 34;  
 const float ENCODER_TICK_PER_REV = 107.0;  
-const float WHEEL_BASE = 100.0;      // Distance between wheels (mm)
+const float WHEEL_BASE = 100.0;    
 
-float robotX = 0.0;       // Robot position X in mm
-float robotY = 0.0;       // Robot position Y in mm
-float robotHeading = 0.0; // Robot heading in degrees (0 = North)
+float robotX = 0.0;      
+float robotY = 0.0;      
+float robotHeading = 0.0; 
 long initialEnc1 = 0;
 long initialEnc2 = 0;
 float initialHeadingValue = 0.0;
@@ -59,9 +58,9 @@ float initialHeadingValue = 0.0;
 // ==================== Maze Cell Structure (with Flood-Fill Value) ====================
 struct Cell {
   bool visited;
-  int order;            // Order in which the cell was visited (for DFS)
-  int floodFillValue;   // Flood fill value (distance in steps to goal)
-  Cell() : visited(false), order(0), floodFillValue(9999) {} // 9999 = "infinity"
+  int order;          
+  int floodFillValue; 
+  Cell() : visited(false), order(0), floodFillValue(9999) {} 
 };
 // Use extra padding (MAZE_SIZE+5) for safety
 Cell maze[MAZE_SIZE+5][MAZE_SIZE+5];
