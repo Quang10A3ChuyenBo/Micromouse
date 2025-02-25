@@ -37,40 +37,43 @@ const int STBY = 25;
 const int encoderPin1_1 = 19, encoderPin2_1 = 18;
 const int encoderPin1_2 = 15, encoderPin2_2 = 2;
 
-// ================ Global Variables ================
+// ================ Global Parameters ================
 int speed = 160;
 
 // ================ Maze & Robot Parameters ================
-const int MAZE_SIZE = 3000;
-const int CELL_SIZE = 165;
+const int MAZE_SIZE = 3000;   // mm (điều chỉnh nếu cần)
+const int CELL_SIZE = 165;    // mm (điều chỉnh nếu cần)
 const float WHEEL_DIAMETER = 34.0;   // mm
-// 1 ô di chuyển = 2450 xung
-const float ENCODER_TICK_PER_REV = 2450.0;
-const float WHEEL_BASE = 90;      // mm
+const float ENCODER_TICK_PER_REV = 2450.0; // ticks/cell
+const float WHEEL_BASE = 90;   // mm
 
 float robotX = 0, robotY = 0;
-// Quản lý hướng bằng biến currentDirection: 0 = Bắc, 1 = Đông, 2 = Nam, 3 = Tây.
+// currentDirection: 0 = Bắc, 1 = Đông, 2 = Nam, 3 = Tây
 int currentDirection = 0;
 long initialEnc1 = 0, initialEnc2 = 0;
-float initialHeadingValue = 0;  // = 0
+float initialHeadingValue = 0;
+
+// ================ DFS Cell Storage ================
+struct Cell {
+  bool visited;
+  int order;
+  Cell() : visited(false), order(0) {}
+};
+Cell maze[MAZE_SIZE+5][MAZE_SIZE+5];
+int cellOrder = 0;
+int currentCellX = -1, currentCellY = -1;
+std::stack<std::pair<int,int>> cellStack;
 
 // ================ Sensor Thresholds (cm) ================
 const float FORWARD_THRESHOLD = 11.0;
 const float LEFT_THRESHOLD = 14.0;
-const float RIGHT_THRESHOLD = 18.0;
+const float RIGHT_THRESHOLD = 17.0;
 
-// ================ Cài đặt cảm biến (TCA channels) ================
+// ================ TCA Channels for Sensors ================
 const uint8_t sensorChannels[3] = {1, 2, 4};
 
-const float TURN_TICKS_90 = 650.0;
-
-// ================ IRAM Encoder ISR ================
-void IRAM_ATTR readEncoder() {
-  int stateA = digitalRead(ENCODER_PIN_A);
-  int stateB = digitalRead(ENCODER_PIN_B);
-  // Giả sử thư viện encoder tự cập nhật, ISR ở đây không cần cập nhật lại encoder1, encoder2.
-  // (Encoder library thường tự động cập nhật giá trị.)
-}
+// ================ Fixed Turning Constant ================
+const float TURN_TICKS_90 = 660.0;  // ticks required for a 90° turn
 
 // ================ TCA Select Function ================
 void tcaSelect(uint8_t channel) {
@@ -81,7 +84,7 @@ void tcaSelect(uint8_t channel) {
 
 // ================ Dummy resetSensors() ================
 void resetSensors() {
-  // Nếu cần, thêm code reset cho cảm biến. Ở đây để trống.
+  // Code reset nếu cần; ở đây để trống.
 }
 
 // ================ Motor Control Functions ================
@@ -90,18 +93,15 @@ void Left_wheel(int control, int spd) {
   digitalWrite(AIN1, (control == TIEN));
   digitalWrite(AIN2, (control == LUI));
 }
-
 void Right_wheel(int control, int spd) {
   analogWrite(PWMB, spd);
   digitalWrite(BIN1, (control == TIEN));
   digitalWrite(BIN2, (control == LUI));
 }
-
 void stopMovement() {
   Right_wheel(DUNG, 0);
   Left_wheel(DUNG, 0);
 }
-
 void di_thang(int spd) {
   // Đi thẳng: bánh trái tiến, bánh phải lùi.
   Right_wheel(LUI, spd);
@@ -109,47 +109,41 @@ void di_thang(int spd) {
 }
 
 // ================ Fixed Turning Functions ================
-// Mỗi 90° quay = 600 xung.
-// Rẽ phải: xe tiến (cả 2 bánh chạy tiến, bánh trái nhanh hơn bánh phải).
-void turnRightFixed(int spd, float turnFactor) {
-  long startL = encoder1.getCount();
-  long startR = encoder2.getCount();
+// re_phai: turn right using forward motion; re_trai: turn left using reverse motion.
+// Dùng 660 ticks cho 90°; nếu turnFactor > 1, nhân thêm.
+void re_phai(int spd, float turnFactor) {
+  encoder1.setCount(0);
+  encoder2.setCount(0);
+  encoder1.clearCount();
+  encoder2.clearCount();
   float req = TURN_TICKS_90 * turnFactor;
-  while (true) {
-    long diffL = encoder1.getCount() - startL;
-    long diffR = encoder2.getCount() - startR;
-    // Khi đi tiến, cả 2 bánh tăng số xung, để quay phải cần bánh trái tăng nhanh hơn bánh phải.
-    if ((diffL - diffR) >= req) break;
-    Left_wheel(TIEN, spd-30);
-    Right_wheel(TIEN, spd - 30);
+  while ( (abs(encoder1.getCount()) < req) || (abs(encoder2.getCount()) < req) ) {
+    Right_wheel(TIEN, spd);
+    Left_wheel(TIEN, spd);
+    delayMicroseconds(100);
   }
   stopMovement();
-  currentDirection = (currentDirection + (int)turnFactor) % 4;
 }
-
-// Rẽ trái: xe lùi (cả 2 bánh chạy lùi, bánh phải chạy lùi nhanh hơn bánh trái).
-void turnLeftFixed(int spd, float turnFactor) {
-  long startL = encoder1.getCount();
-  long startR = encoder2.getCount();
+void re_trai(int spd, float turnFactor) {
+  encoder1.setCount(0);
+  encoder2.setCount(0);
+  encoder1.clearCount();
+  encoder2.clearCount();
   float req = TURN_TICKS_90 * turnFactor;
-  while (true) {
-    long diffL = encoder1.getCount() - startL;  // Khi lùi, giá trị giảm
-    long diffR = encoder2.getCount() - startR;
-    // Ta tính giá trị âm: muốn |diffR| > |diffL| với hiệu số đạt req.
-    if (((-diffR) - (-diffL)) >= req) break;
-    Right_wheel(TIEN, spd-30);
-    Left_wheel(TIEN, spd - 30);
+  while ( (abs(encoder1.getCount()) < req) || (abs(encoder2.getCount()) < req) ) {
+    Right_wheel(LUI, spd);
+    Left_wheel(LUI, spd);
+    delayMicroseconds(100);
   }
   stopMovement();
-  currentDirection = (currentDirection + 3) % 4;
 }
 
 // ================ Update Position ================
-// Khi đi thẳng, cập nhật vị trí dựa trên currentDirection.
+// Khi đi thẳng, cập nhật vị trí dựa trên trung bình encoder.
 void updateRobotPosition() {
   long curE1 = encoder1.getCount();
   long curE2 = encoder2.getCount();
-  long dE = (curE1 + curE2) / 2 - (initialEnc1 + initialEnc2) / 2;
+  long dE = ((curE1 + curE2) / 2) - ((initialEnc1 + initialEnc2) / 2);
   float dist = (dE / ENCODER_TICK_PER_REV) * (PI * WHEEL_DIAMETER);
   if (currentDirection == 0) robotY += dist;
   else if (currentDirection == 1) robotX += dist;
@@ -160,29 +154,65 @@ void updateRobotPosition() {
 }
 
 // ================ DFS Decision ================
-// Đơn giản: nếu cảm biến phía trước đủ, đi thẳng; nếu không, nếu bên phải đủ, quay phải; nếu không, nếu bên trái đủ, quay trái; còn lại, đi thẳng.
+// Lưu cell theo thứ tự; nếu không có hướng mới, backtracking dựa vào cellStack.
 void dfsDecision(int dist_forward, int dist_left, int dist_right) {
+  int cellX = (int)((robotX + 1200) / CELL_SIZE);
+  int cellY = (int)((robotY + 1200) / CELL_SIZE);
+  if (cellX != currentCellX || cellY != currentCellY) {
+    if (currentCellX != -1 && currentCellY != -1)
+      cellStack.push({currentCellX, currentCellY});
+    currentCellX = cellX;
+    currentCellY = cellY;
+    maze[cellX][cellY].visited = true;
+    maze[cellX][cellY].order = ++cellOrder;
+    Serial.print("Entered cell: ");
+    Serial.print(cellX);
+    Serial.print(", ");
+    Serial.println(cellY);
+  }
+  
   if (dist_forward > FORWARD_THRESHOLD) {
     Serial.println("Decision: Move Forward");
     di_thang(speed);
   } else if (dist_right > RIGHT_THRESHOLD) {
     Serial.println("Decision: Turn Right");
-    turnRightFixed(speed, 1);
+    stopMovement();
+    re_phai(90, 1);
     di_thang(speed);
   } else if (dist_left > LEFT_THRESHOLD) {
     Serial.println("Decision: Turn Left");
-    turnLeftFixed(speed, 1);
+    stopMovement();
+    re_trai(90, 1);
     di_thang(speed);
   } else {
-    Serial.println("No available move; moving forward.");
-    di_thang(speed);
+    if (!cellStack.empty()) {
+      auto prevCell = cellStack.top();
+      cellStack.pop();
+      Serial.print("Backtracking to cell: ");
+      Serial.print(prevCell.first);
+      Serial.print(", ");
+      Serial.println(prevCell.second);
+      int dx = prevCell.first - currentCellX;
+      int dy = prevCell.second - currentCellY;
+      int desired;
+      if (dx > 0) desired = 1;
+      else if (dx < 0) desired = 3;
+      else if (dy > 0) desired = 0;
+      else desired = 2;
+      while (currentDirection != desired) {
+        re_phai(90, 1);
+      }
+      di_thang(speed);
+    } else {
+      Serial.println("No available move; moving forward.");
+      di_thang(speed);
+    }
   }
 }
 
 void setup() {
   Serial.begin(115200);
   Wire.begin(21, 22);
-  
   pinMode(PWMA, OUTPUT);
   pinMode(AIN1, OUTPUT);
   pinMode(AIN2, OUTPUT);
@@ -200,16 +230,17 @@ void setup() {
   encoder1.attachHalfQuad(encoderPin1_1, encoderPin2_1);
   encoder2.attachHalfQuad(encoderPin1_2, encoderPin2_2);
   
-  tcaSelect(1); // Sensor 1: forward
+  tcaSelect(sensorChannels[0]); // Sensor 1: forward
   if (!sensors[0].begin()) Serial.println("VL53L0X #1 failed!");
   
-  tcaSelect(2); // Sensor 2: left
+  tcaSelect(sensorChannels[1]); // Sensor 2: left
   if (!sensors[1].begin()) Serial.println("VL53L0X #2 failed!");
   
-  tcaSelect(4); // Sensor 3: right
+  tcaSelect(sensorChannels[2]); // Sensor 3: right
   if (!sensors[2].begin()) Serial.println("VL53L0X #3 failed!");
   
-  // Khởi động xe chạy luôn
+  resetSensors();
+  
   initialEnc1 = encoder1.getCount();
   initialEnc2 = encoder2.getCount();
   initialHeadingValue = 0;
@@ -243,12 +274,10 @@ void loop() {
   
   updateRobotPosition();
   
-  // Hiển thị thông tin (có thể xóa nếu không cần)
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
   display.setCursor(0, 0);
-  display.print("Enc: "); display.println(encoder1.getCount());
   display.print("F: "); display.print(dist_forward); display.println(" cm");
   display.print("L: "); display.print(dist_left); display.println(" cm");
   display.print("R: "); display.print(dist_right); display.println(" cm");
