@@ -38,7 +38,7 @@ const int encoderPin1_1 = 19, encoderPin2_1 = 18;
 const int encoderPin1_2 = 15, encoderPin2_2 = 2;
 
 // ================ Global Parameters ================
-int speed = 160;
+int speed = 130;
 
 // ================ Maze & Robot Parameters ================
 const int MAZE_SIZE = 25;   // mm (điều chỉnh nếu cần)
@@ -117,8 +117,8 @@ void re_phai(int spd, float turnFactor) {
   encoder1.clearCount();
   encoder2.clearCount();
   while (abs(encoder1.getCount()) < TURN_TICKS_90 || abs(encoder2.getCount()) < TURN_TICKS_90) {
-      Right_wheel(TIEN, speed+5);
-      Left_wheel(TIEN, speed);
+      Right_wheel(TIEN, spd+5);
+      Left_wheel(TIEN, spd);
 
       Serial.print("Enc1: "); Serial.print(encoder1.getCount());
       Serial.print(" Enc2: "); Serial.println(encoder2.getCount());
@@ -182,32 +182,20 @@ void dfsDecision(int dist_forward, int dist_left, int dist_right) {
     Serial.println(cellY);
   }
   
-  bool canForward = (dist_forward > FORWARD_THRESHOLD);
-  bool canRight   = (dist_right > RIGHT_THRESHOLD);
-  bool canLeft    = (dist_left > LEFT_THRESHOLD);
-
-
-  if ( canForward || canRight || canLeft ) {
-    if ( canForward && (dist_forward >= dist_right) && (dist_forward >= dist_left) ) {
-      Serial.println("Decision: Move Forward");
-      di_thang(speed);
-      delay(25);
-    }
-    else if ( canRight && (dist_right >= dist_left) ) {
-      Serial.println("Decision: Turn Right");
-      stopMovement();
-      delay(25);
-      re_phai(90, 1);
-    }
-    else if ( canLeft ) {
-      Serial.println("Decision: Turn Left");
-      stopMovement();
-      delay(25);
-      re_trai(90, 1);
-    }
-  }
-  else {
-    // Nếu không có hướng nào khả thi, thực hiện backtracking
+  if (dist_forward > FORWARD_THRESHOLD) {
+    Serial.println("Decision: Move Forward");
+    di_thang(speed);
+  } else if (dist_right > RIGHT_THRESHOLD) {
+    Serial.println("Decision: Turn Right");
+    stopMovement();
+    delay(25);
+    re_phai(90, 1);
+  } else if (dist_left > LEFT_THRESHOLD) {
+    Serial.println("Decision: Turn Left");
+    stopMovement();
+    delay(25);
+    re_trai(90, 1);
+  } else {
     if (!cellStack.empty()) {
       auto prevCell = cellStack.top();
       cellStack.pop();
