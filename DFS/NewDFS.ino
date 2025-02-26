@@ -125,9 +125,9 @@ void re_phai(int spd, float turnFactor) {
       Right_wheel(TIEN, spd+5);
       Left_wheel(TIEN, spd);
 
-      display.setCursor(0, 0);
-      display.print("Enc1: "); display.print(encoder1.getCount());
-      display.print(" Enc2: "); display.println(encoder2.getCount());
+      // display.setCursor(0, 0);
+      // display.print("Enc1: "); display.print(encoder1.getCount());
+      // display.print(" Enc2: "); display.println(encoder2.getCount());
       // display.display();
 
       delay(25);
@@ -147,9 +147,9 @@ void re_trai(int spd, float turnFactor) {
       Right_wheel(LUI, spd+5);
       Left_wheel(LUI, spd);
 
-      display.setCursor(0, 0);
-      display.print("Enc1: "); display.print(encoder1.getCount());
-      display.print(" Enc2: "); display.println(encoder2.getCount());
+      // display.setCursor(0, 0);
+      // display.print("Enc1: "); display.print(encoder1.getCount());
+      // display.print(" Enc2: "); display.println(encoder2.getCount());
       // display.display();
 
       delay(25);
@@ -168,10 +168,10 @@ void quay_lai(int spd, float turnFactor) {
       Right_wheel(TIEN, spd+5);
       Left_wheel(TIEN, spd);
 
-      display.setCursor(0, 0);
+      // display.setCursor(0, 0);
       // display.print("Enc1: "); display.print(encoder1.getCount());
       // display.print(" Enc2: "); display.println(encoder2.getCount());
-      display.display();
+      // display.display();
 
       delay(25);
     }
@@ -207,67 +207,67 @@ void dfsDecision(int dist_forward, int dist_left, int dist_right) {
     maze[cellX][cellY].visited = true;
     maze[cellX][cellY].order = ++cellOrder;
 
-    display.clearDisplay();
-    display.setTextSize(1);
-    display.setCursor(0, 0);
-    display.print("Cell: ");
-    display.print(cellX);
-    display.print(",");
-    display.println(cellY);
-    display.print("Order: ");
-    display.println(cellOrder);
-    display.print("Stack size: ");
-    display.println(cellStack.size());
-    display.display();
-    delay(100);
+    // display.clearDisplay();
+    // display.setTextSize(1);
+    // display.setCursor(0, 0);
+    // display.print("Cell: ");
+    // display.print(cellX);
+    // display.print(",");
+    // display.println(cellY);
+    // display.print("Order: ");
+    // display.println(cellOrder);
+    // display.print("Stack size: ");
+    // display.println(cellStack.size());
+    // display.display();
+    // delay(100);
   }
   
   if (dist_forward > FORWARD_THRESHOLD) {
-    display.println("Decision: Move Forward");
+    // display.println("Decision: Move Forward");
     di_thang(speed);
-    display.display();
+    // display.display();
   } else if (dist_right > RIGHT_THRESHOLD) {
-    display.println("Decision: Turn Right");
+    // display.println("Decision: Turn Right");
     stopMovement();
     delay(25);
     re_phai(90, 1);
-    display.display();
+    // display.display();
   } else if (dist_left > LEFT_THRESHOLD) {
-    display.println("Decision: Turn Left");
+    // display.println("Decision: Turn Left");
     stopMovement();
     delay(25);
     re_trai(90, 1);
-    display.display();
+    // display.display();
   }else if (dist_forward <= FORWARD_THRESHOLD && dist_right <= RIGHT_THRESHOLD && dist_left <= LEFT_THRESHOLD) {
-    display.println("Turn back");
+    // display.println("Turn back");
     stopMovement();
     delay(25);
     quay_lai(90, 1);
     delay(25);
     di_lui(speed);
-    display.display();
+    // display.display();
   } else {
     if (!cellStack.empty()) {
       auto prevCell = cellStack.top();
       cellStack.pop();
-      display.print("Backtracking to cell: ");
-      display.print(prevCell.first);
-      display.print(", ");
-      display.println(prevCell.second);
+      // display.print("Backtracking to cell: ");
+      // display.print(prevCell.first);
+      // display.print(", ");
+      // display.println(prevCell.second);
       maze[currentCellX][currentCellY].visited = true;
 
-      display.println("Turn back");
+      // display.println("Turn back");
       stopMovement();
       delay(25);
       quay_lai(90, 1);
       delay(25);
       di_lui(speed);
-      display.display();
+      // display.display();
     }
     else {
-      display.println("No available move; moving forward.");
+      // display.println("No available move; moving forward.");
       di_thang(speed);
-      display.display();
+      // display.display();
     }
   }
 }
@@ -335,24 +335,27 @@ void loop() {
   int dist_right = m2.RangeMilliMeter / 10;
   
   updateRobotPosition();
+
+    int cellX = (int)((robotX + 1200) / CELL_SIZE);
+    int cellY = (int)((robotY + 1200) / CELL_SIZE);
   
   display.clearDisplay();
-  display.setTextSize(5);
+  display.setTextSize(2); // Tăng kích thước chữ
   display.setTextColor(SSD1306_WHITE);
-    display.setCursor(0, 0);
-    display.print("Cell: ");
-    display.print(cellX);
-    display.print(",");
-    display.println(cellY);
-    display.print("Order: ");
-    display.println(cellOrder);
-    display.print("Stack size: ");
-    display.println(cellStack.size());
-    display.display();
+  display.setCursor(0, 10);  // Điều chỉnh vị trí bắt đầu vẽ
+  display.print("Cell: ");
+  display.print(cellX);
+  display.print(",");
+  display.println(cellY);
+    display.setCursor(0, 35);  // Điều chỉnh vị trí bắt đầu vẽ cho dòng tiếp theo.
+  display.print("Order: ");
+  display.println(cellOrder);
+
+  display.display();
   
-  Serial.print("F: "); Serial.print(dist_forward);
-  Serial.print(" cm L: "); Serial.print(dist_left);
-  Serial.print(" cm R: "); Serial.println(dist_right);
+  // Serial.print("F: "); Serial.print(dist_forward);
+  // Serial.print(" cm L: "); Serial.print(dist_left);
+  // Serial.print(" cm R: "); Serial.println(dist_right);
   
   dfsDecision(dist_forward, dist_left, dist_right);
   delay(50);
