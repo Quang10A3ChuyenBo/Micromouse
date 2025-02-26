@@ -65,9 +65,9 @@ int currentCellX = -1, currentCellY = -1;
 std::stack<std::pair<int,int>> cellStack;
 
 // ================ Sensor Thresholds (cm) ================
-const float FORWARD_THRESHOLD = 11.0;
-const float LEFT_THRESHOLD = 14.0;
-const float RIGHT_THRESHOLD = 17.0;
+const float FORWARD_THRESHOLD = 12.0;
+const float LEFT_THRESHOLD = 15.0;
+const float RIGHT_THRESHOLD = 18.0;
 
 // ================ TCA Channels for Sensors ================
 const uint8_t sensorChannels[3] = {1, 2, 4};
