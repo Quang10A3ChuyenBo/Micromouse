@@ -197,8 +197,11 @@ void updateRobotPosition() {
 // ================ DFS Decision ================
 // Lưu cell theo thứ tự; nếu không có hướng mới, backtracking dựa vào cellStack.
 void dfsDecision(int dist_forward, int dist_left, int dist_right) {
+  // Tính toán cell hiện tại (với offset 1200 mm)
   int cellX = (int)((robotX + 1200) / CELL_SIZE);
   int cellY = (int)((robotY + 1200) / CELL_SIZE);
+  
+  // Nếu robot bước vào cell mới, lưu cell cũ vào stack và cập nhật current cell
   if (cellX != currentCellX || cellY != currentCellY) {
     if (currentCellX != -1 && currentCellY != -1)
       cellStack.push({currentCellX, currentCellY});
@@ -206,38 +209,8 @@ void dfsDecision(int dist_forward, int dist_left, int dist_right) {
     currentCellY = cellY;
     maze[cellX][cellY].visited = true;
     maze[cellX][cellY].order = ++cellOrder;
-
-    // display.clearDisplay();
-    // display.setTextSize(1);
-    // display.setCursor(0, 0);
-    // display.print("Cell: ");
-    // display.print(cellX);
-    // display.print(",");
-    // display.println(cellY);
-    // display.print("Order: ");
-    // display.println(cellOrder);
-    // display.print("Stack size: ");
-    // display.println(cellStack.size());
-    // display.display();
-    // delay(100);
-  }
-  
-  void dfsDecision(int dist_forward, int dist_left, int dist_right) {
-  // Tính cell hiện tại (với offset 1200 mm)
-  int cellX = (int)((robotX + 1200) / CELL_SIZE);
-  int cellY = (int)((robotY + 1200) / CELL_SIZE);
-  
-  // Nếu robot bước vào cell mới, lưu cell cũ vào stack và cập nhật current cell
-  if (cellX != currentCellX || cellY != currentCellY) {
-    if (currentCellX != -1 && currentCellY != -1) {
-      cellStack.push({currentCellX, currentCellY});
-    }
-    currentCellX = cellX;
-    currentCellY = cellY;
-    maze[cellX][cellY].visited = true;
-    maze[cellX][cellY].order = ++cellOrder;
     
-    // In ra OLED: hiển thị cell và order (để kiểm tra)
+    // In ra OLED để debug: hiển thị cell và thứ tự
     display.clearDisplay();
     display.setTextSize(2);
     display.setTextColor(SSD1306_WHITE);
@@ -252,29 +225,27 @@ void dfsDecision(int dist_forward, int dist_left, int dist_right) {
     delay(100);
   }
   
-  // Kiểm tra các hướng khả thi từ cell hiện tại theo sensor
+  // Ưu tiên theo thứ tự: tiến > phải > trái
   bool canForward = (dist_forward > FORWARD_THRESHOLD);
   bool canRight   = (dist_right > RIGHT_THRESHOLD);
   bool canLeft    = (dist_left > LEFT_THRESHOLD);
   
-  if (canForward || canRight || canLeft) {
-    if (canForward && (dist_forward >= dist_right) && (dist_forward >= dist_left)) {
-      Serial.println("Decision: Move Forward");
-      di_thang(speed);
-    }
-    else if (canRight && (dist_right >= dist_left)) {
-      Serial.println("Decision: Turn Right");
-      stopMovement();
-      delay(25);
-      re_phai(100, 1);
-    }
-    else if (canLeft) {
-      Serial.println("Decision: Turn Left");
-      stopMovement();
-      delay(25);
-      re_trai(100, 1);
-    }
-  } 
+  if (canForward) {
+    Serial.println("Decision: Move Forward");
+    di_thang(speed);
+  }
+  else if (canRight) {
+    Serial.println("Decision: Turn Right");
+    stopMovement();
+    delay(25);
+    re_phai(100, 1);
+  }
+  else if (canLeft) {
+    Serial.println("Decision: Turn Left");
+    stopMovement();
+    delay(25);
+    re_trai(100, 1);
+  }
   else {
     // Không có hướng khả thi, tiến hành backtracking dựa vào cell order.
     Serial.println("No available move; attempting backtracking...");
