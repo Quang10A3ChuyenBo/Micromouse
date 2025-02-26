@@ -41,7 +41,7 @@ const int encoderPin1_2 = 15, encoderPin2_2 = 2;
 int speed = 160;
 
 // ================ Maze & Robot Parameters ================
-const int MAZE_SIZE = 3000;   // mm (điều chỉnh nếu cần)
+const int MAZE_SIZE = 25;   // mm (điều chỉnh nếu cần)
 const int CELL_SIZE = 165;    // mm (điều chỉnh nếu cần)
 const float WHEEL_DIAMETER = 34.0;   // mm
 const float ENCODER_TICK_PER_REV = 2450.0; // ticks/cell
