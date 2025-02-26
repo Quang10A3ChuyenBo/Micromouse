@@ -108,6 +108,11 @@ void di_thang(int spd) {
   Left_wheel(TIEN, spd);
 }
 
+void di_lui(int spd)
+{
+  Right_wheel(TIEN, spd+5);
+  Left_wheel(LUI, spd);
+}
 // ================ Fixed Turning Functions ================
 // re_phai: turn right using forward motion; re_trai: turn left using reverse motion.
 // Dùng 660 ticks cho 90°; nếu turnFactor > 1, nhân thêm.
@@ -120,8 +125,10 @@ void re_phai(int spd, float turnFactor) {
       Right_wheel(TIEN, spd+5);
       Left_wheel(TIEN, spd);
 
-      Serial.print("Enc1: "); Serial.print(encoder1.getCount());
-      Serial.print(" Enc2: "); Serial.println(encoder2.getCount());
+      display.setCursor(0, 0);
+      display.print("Enc1: "); display.print(encoder1.getCount());
+      display.print(" Enc2: "); display.println(encoder2.getCount());
+      display.display();
 
       delay(25);
     }
@@ -140,14 +147,37 @@ void re_trai(int spd, float turnFactor) {
       Right_wheel(LUI, spd+5);
       Left_wheel(LUI, spd);
 
-      Serial.print("Enc1: "); Serial.print(encoder1.getCount());
-      Serial.print(" Enc2: "); Serial.println(encoder2.getCount());
+      display.setCursor(0, 0);
+      display.print("Enc1: "); display.print(encoder1.getCount());
+      display.print(" Enc2: "); display.println(encoder2.getCount());
+      display.display();
 
       delay(25);
     }
   
   stopMovement();
   currentDirection = (currentDirection + 3) % 4;
+}
+
+void quay_lai(int spd, float turnFactor) {
+  encoder1.setCount(0);
+  encoder2.setCount(0);
+  encoder1.clearCount();
+  encoder2.clearCount();
+  while (abs(encoder1.getCount()) < 1500 || abs(encoder2.getCount()) < 1500) {
+      Right_wheel(TIEN, spd+5);
+      Left_wheel(TIEN, spd);
+
+      display.setCursor(0, 0);
+      display.print("Enc1: "); display.print(encoder1.getCount());
+      display.print(" Enc2: "); display.println(encoder2.getCount());
+      display.display();
+
+      delay(25);
+    }
+  
+  stopMovement();
+  currentDirection = (currentDirection + 2*(int)turnFactor) % 4;
 }
 // ================ Update Position ================
 // Khi đi thẳng, cập nhật vị trí dựa trên trung bình encoder.
@@ -176,51 +206,68 @@ void dfsDecision(int dist_forward, int dist_left, int dist_right) {
     currentCellY = cellY;
     maze[cellX][cellY].visited = true;
     maze[cellX][cellY].order = ++cellOrder;
-    Serial.print("Entered cell: ");
-    Serial.print(cellX);
-    Serial.print(", ");
-    Serial.println(cellY);
+
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setCursor(0, 0);
+    display.print("Cell: ");
+    display.print(cellX);
+    display.print(",");
+    display.println(cellY);
+    display.print("Order: ");
+    display.println(cellOrder);
+    display.print("Stack size: ");
+    display.println(cellStack.size());
+    display.display();
+    delay(100);
   }
   
   if (dist_forward > FORWARD_THRESHOLD) {
-    Serial.println("Decision: Move Forward");
+    display.println("Decision: Move Forward");
     di_thang(speed);
+    display.display();
   } else if (dist_right > RIGHT_THRESHOLD) {
-    Serial.println("Decision: Turn Right");
+    display.println("Decision: Turn Right");
     stopMovement();
     delay(25);
     re_phai(90, 1);
+    display.display();
   } else if (dist_left > LEFT_THRESHOLD) {
-    Serial.println("Decision: Turn Left");
+    display.println("Decision: Turn Left");
     stopMovement();
     delay(25);
     re_trai(90, 1);
+    display.display();
+  }else if (dist_forward <= FORWARD_THRESHOLD && dist_right <= RIGHT_THRESHOLD && dist_left <= LEFT_THRESHOLD) {
+    display.println("Turn back");
+    stopMovement();
+    delay(25);
+    quay_lai(90, 1);
+    delay(25);
+    di_lui(speed);
+    display.display();
   } else {
     if (!cellStack.empty()) {
       auto prevCell = cellStack.top();
       cellStack.pop();
-      Serial.print("Backtracking to cell: ");
-      Serial.print(prevCell.first);
-      Serial.print(", ");
-      Serial.println(prevCell.second);
-      int dx = prevCell.first - currentCellX;
-      int dy = prevCell.second - currentCellY;
-      int desired;
-      if (dx > 0) desired = 1;
-      else if (dx < 0) desired = 3;
-      else if (dy > 0) desired = 0;
-      else desired = 2;
-      while (currentDirection != desired) {
-        stopMovement();
-        delay(25);
-        re_phai(90, 1);
-        delay(25);
-      }
-      di_thang(speed);
+      display.print("Backtracking to cell: ");
+      display.print(prevCell.first);
+      display.print(", ");
+      display.println(prevCell.second);
+      maze[currentCellX][currentCellY].visited = true;
+
+      display.println("Turn back");
+      stopMovement();
+      delay(25);
+      quay_lai(90, 1);
+      delay(25);
+      di_lui(speed);
+      display.display();
     }
     else {
-      Serial.println("No available move; moving forward.");
+      display.println("No available move; moving forward.");
       di_thang(speed);
+      display.display();
     }
   }
 }
@@ -252,7 +299,7 @@ void setup() {
   if (!sensors[1].begin()) Serial.println("VL53L0X #2 failed!");
   
   tcaSelect(sensorChannels[2]); // Sensor 3: right
-  if (!sensors[2].begin()) Serial.println("VL53L0X #3 failed!");
+  if (!sensors[2].begin()) display.println("VL53L0X #3 failed!");
   
   resetSensors();
   
