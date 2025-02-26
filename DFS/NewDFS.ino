@@ -44,7 +44,7 @@ int speed = 130;
 const int MAZE_SIZE = 25;   // mm (điều chỉnh nếu cần)
 const int CELL_SIZE = 165;    // mm (điều chỉnh nếu cần)
 const float WHEEL_DIAMETER = 34.0;   // mm
-const float ENCODER_TICK_PER_REV = 2450.0; // ticks/cell
+const float ENCODER_TICK_PER_REV = 2400.0; // ticks/cell
 const float WHEEL_BASE = 90;   // mm
 
 float robotX = 0, robotY = 0;
@@ -222,10 +222,9 @@ void dfsDecision(int dist_forward, int dist_left, int dist_right) {
     display.print("Order: ");
     display.println(cellOrder);
     display.display();
-    delay(100);
+    delay(50);
   }
-  
-  // Ưu tiên theo thứ tự: tiến > phải > trái
+
   bool canForward = (dist_forward > FORWARD_THRESHOLD);
   bool canRight   = (dist_right > RIGHT_THRESHOLD);
   bool canLeft    = (dist_left > LEFT_THRESHOLD);
@@ -238,13 +237,13 @@ void dfsDecision(int dist_forward, int dist_left, int dist_right) {
     Serial.println("Decision: Turn Right");
     stopMovement();
     delay(25);
-    re_phai(100, 1);
+    re_phai(90, 1);
   }
   else if (canLeft) {
     Serial.println("Decision: Turn Left");
     stopMovement();
     delay(25);
-    re_trai(100, 1);
+    re_trai(90, 1);
   }
   else {
     // Không có hướng khả thi, tiến hành backtracking dựa vào cell order.
@@ -269,7 +268,7 @@ void dfsDecision(int dist_forward, int dist_left, int dist_right) {
       currentCellX = candidate.first;
       currentCellY = candidate.second;
       // Quay lại 180° rồi di chuyển lùi để rời khỏi cell cũ
-      quay_lai(100, 1);  // Hàm quay lại 180° đã được định nghĩa
+      quay_lai(90, 1);  // Hàm quay lại 180° đã được định nghĩa
       di_lui(speed);     // Di chuyển lùi để đảm bảo rời khỏi cell hiện tại
     }
     else {
