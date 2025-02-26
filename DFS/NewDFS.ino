@@ -128,7 +128,7 @@ void re_phai(int spd, float turnFactor) {
       display.setCursor(0, 0);
       display.print("Enc1: "); display.print(encoder1.getCount());
       display.print(" Enc2: "); display.println(encoder2.getCount());
-      display.display();
+      // display.display();
 
       delay(25);
     }
@@ -150,7 +150,7 @@ void re_trai(int spd, float turnFactor) {
       display.setCursor(0, 0);
       display.print("Enc1: "); display.print(encoder1.getCount());
       display.print(" Enc2: "); display.println(encoder2.getCount());
-      display.display();
+      // display.display();
 
       delay(25);
     }
@@ -169,8 +169,8 @@ void quay_lai(int spd, float turnFactor) {
       Left_wheel(TIEN, spd);
 
       display.setCursor(0, 0);
-      display.print("Enc1: "); display.print(encoder1.getCount());
-      display.print(" Enc2: "); display.println(encoder2.getCount());
+      // display.print("Enc1: "); display.print(encoder1.getCount());
+      // display.print(" Enc2: "); display.println(encoder2.getCount());
       display.display();
 
       delay(25);
@@ -337,13 +337,18 @@ void loop() {
   updateRobotPosition();
   
   display.clearDisplay();
-  display.setTextSize(1);
+  display.setTextSize(5);
   display.setTextColor(SSD1306_WHITE);
-  display.setCursor(0, 0);
-  display.print("F: "); display.print(dist_forward); display.println(" cm");
-  display.print("L: "); display.print(dist_left); display.println(" cm");
-  display.print("R: "); display.print(dist_right); display.println(" cm");
-  display.display();
+    display.setCursor(0, 0);
+    display.print("Cell: ");
+    display.print(cellX);
+    display.print(",");
+    display.println(cellY);
+    display.print("Order: ");
+    display.println(cellOrder);
+    display.print("Stack size: ");
+    display.println(cellStack.size());
+    display.display();
   
   Serial.print("F: "); Serial.print(dist_forward);
   Serial.print(" cm L: "); Serial.print(dist_left);
