@@ -73,7 +73,7 @@ const float RIGHT_THRESHOLD = 17.0;
 const uint8_t sensorChannels[3] = {1, 2, 4};
 
 // ================ Fixed Turning Constant ================
-const float TURN_TICKS_90 = 580.0;  // ticks required for a 90° turn
+const float TURN_TICKS_90 = 550.0;  // ticks required for a 90° turn
 
 // ================ TCA Select Function ================
 void tcaSelect(uint8_t channel) {
@@ -116,26 +116,16 @@ void re_phai(int spd, float turnFactor) {
   encoder2.setCount(0);
   encoder1.clearCount();
   encoder2.clearCount();
-  float req = TURN_TICKS_90 * turnFactor;
-  if (turnFactor == 2) {
-    while (abs(encoder1.getCount()) < TURN_TICKS_90 || abs(encoder2.getCount()) < TURN_TICKS_90) {
-        Right_wheel(TIEN, speed+5);
-        Left_wheel(TIEN, speed);
+  while (abs(encoder1.getCount()) < TURN_TICKS_90 || abs(encoder2.getCount()) < TURN_TICKS_90) {
+      Right_wheel(TIEN, speed+5);
+      Left_wheel(TIEN, speed);
 
-        Serial.print("Enc1: "); Serial.print(encoder1.getCount());
-        Serial.print(" Enc2: "); Serial.println(encoder2.getCount());
-
-        delayMicroseconds(100);
-    }
-  } else {
-    while ((abs(encoder1.getCount()) < req) || (abs(encoder2.getCount()) < req)) {
-      Left_wheel(TIEN, spd);
-      Right_wheel(TIEN, spd+5);
       Serial.print("Enc1: "); Serial.print(encoder1.getCount());
-        Serial.print(" Enc2: "); Serial.println(encoder2.getCount());
-      delayMicroseconds(100);
+      Serial.print(" Enc2: "); Serial.println(encoder2.getCount());
+
+      delay(25);
     }
-  }
+  
   stopMovement();
   currentDirection = (currentDirection + (int)turnFactor) % 4;
 }
@@ -145,26 +135,17 @@ void re_trai(int spd, float turnFactor) {
   encoder2.setCount(0);
   encoder1.clearCount();
   encoder2.clearCount();
-  float req = TURN_TICKS_90 * turnFactor;
-  if (turnFactor == 2) {
+  
      while (abs(encoder1.getCount()) < TURN_TICKS_90 || abs(encoder2.getCount()) < TURN_TICKS_90 ) {
       Right_wheel(LUI, spd+5);
       Left_wheel(LUI, spd);
       Serial.print("Enc1: "); Serial.print(encoder1.getCount());
       Serial.print(" Enc2: "); Serial.println(encoder2.getCount());
-      delayMicroseconds(100);
+      delay(25);
     }
-  } else {
-    while ((abs(encoder1.getCount()) < req) || (abs(encoder2.getCount()) < req)) {
-      Right_wheel(LUI, spd+5);
-      Left_wheel(LUI, spd);
-      Serial.print("Enc1: "); Serial.print(encoder1.getCount());
-      Serial.print(" Enc2: "); Serial.println(encoder2.getCount());
-      delayMicroseconds(100);
-    }
-  }
+  
   stopMovement();
-  currentDirection = (currentDirection + (int)turnFactor) % 4;
+  currentDirection = (currentDirection + 3) % 4;
 }
 // ================ Update Position ================
 // Khi đi thẳng, cập nhật vị trí dựa trên trung bình encoder.
@@ -199,20 +180,32 @@ void dfsDecision(int dist_forward, int dist_left, int dist_right) {
     Serial.println(cellY);
   }
   
-  if (dist_forward > FORWARD_THRESHOLD) {
-    Serial.println("Decision: Move Forward");
-    di_thang(speed);
-  } else if (dist_right > RIGHT_THRESHOLD) {
-    Serial.println("Decision: Turn Right");
-    stopMovement();
-    re_phai(100, 1);
-    di_thang(speed);
-  } else if (dist_left > LEFT_THRESHOLD) {
-    Serial.println("Decision: Turn Left");
-    stopMovement();
-    re_trai(100, 1);
-    di_thang(speed);
-  } else {
+  bool canForward = (dist_forward > FORWARD_THRESHOLD);
+  bool canRight   = (dist_right > RIGHT_THRESHOLD);
+  bool canLeft    = (dist_left > LEFT_THRESHOLD);
+
+
+  if ( canForward || canRight || canLeft ) {
+    if ( canForward && (dist_forward >= dist_right) && (dist_forward >= dist_left) ) {
+      Serial.println("Decision: Move Forward");
+      di_thang(speed);
+      delay(25);
+    }
+    else if ( canRight && (dist_right >= dist_left) ) {
+      Serial.println("Decision: Turn Right");
+      stopMovement();
+      re_phai(100, 1);
+      delay(25);
+    }
+    else if ( canLeft ) {
+      Serial.println("Decision: Turn Left");
+      stopMovement();
+      re_trai(100, 1);
+      delay(25);
+    }
+  }
+  else {
+    // Nếu không có hướng nào khả thi, thực hiện backtracking
     if (!cellStack.empty()) {
       auto prevCell = cellStack.top();
       cellStack.pop();
@@ -229,9 +222,11 @@ void dfsDecision(int dist_forward, int dist_left, int dist_right) {
       else desired = 2;
       while (currentDirection != desired) {
         re_phai(100, 1);
+        delay(25);
       }
       di_thang(speed);
-    } else {
+    }
+    else {
       Serial.println("No available move; moving forward.");
       di_thang(speed);
     }
