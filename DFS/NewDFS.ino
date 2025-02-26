@@ -73,7 +73,7 @@ const float RIGHT_THRESHOLD = 17.0;
 const uint8_t sensorChannels[3] = {1, 2, 4};
 
 // ================ Fixed Turning Constant ================
-const float TURN_TICKS_90 = 660.0;  // ticks required for a 90° turn
+const float TURN_TICKS_90 = 580.0;  // ticks required for a 90° turn
 
 // ================ TCA Select Function ================
 void tcaSelect(uint8_t channel) {
@@ -104,7 +104,7 @@ void stopMovement() {
 }
 void di_thang(int spd) {
   // Đi thẳng: bánh trái tiến, bánh phải lùi.
-  Right_wheel(LUI, spd);
+  Right_wheel(LUI, spd+5);
   Left_wheel(TIEN, spd);
 }
 
@@ -118,8 +118,8 @@ void re_phai(int spd, float turnFactor) {
   encoder2.clearCount();
   float req = TURN_TICKS_90 * turnFactor;
   if (turnFactor == 2) {
-    while (abs(encoder1.getCount()) < 660 || abs(encoder2.getCount()) < 660) {
-        Right_wheel(TIEN, speed);
+    while (abs(encoder1.getCount()) < TURN_TICKS_90 || abs(encoder2.getCount()) < TURN_TICKS_90) {
+        Right_wheel(TIEN, speed+5);
         Left_wheel(TIEN, speed);
 
         Serial.print("Enc1: "); Serial.print(encoder1.getCount());
@@ -130,7 +130,7 @@ void re_phai(int spd, float turnFactor) {
   } else {
     while ((abs(encoder1.getCount()) < req) || (abs(encoder2.getCount()) < req)) {
       Left_wheel(TIEN, spd);
-      Right_wheel(TIEN, spd);
+      Right_wheel(TIEN, spd+5);
       Serial.print("Enc1: "); Serial.print(encoder1.getCount());
         Serial.print(" Enc2: "); Serial.println(encoder2.getCount());
       delayMicroseconds(100);
@@ -147,8 +147,8 @@ void re_trai(int spd, float turnFactor) {
   encoder2.clearCount();
   float req = TURN_TICKS_90 * turnFactor;
   if (turnFactor == 2) {
-     while (abs(encoder1.getCount()) < 660 || abs(encoder2.getCount()) < 660) {
-      Right_wheel(LUI, spd);
+     while (abs(encoder1.getCount()) < TURN_TICKS_90 || abs(encoder2.getCount()) < TURN_TICKS_90 ) {
+      Right_wheel(LUI, spd+5);
       Left_wheel(LUI, spd);
       Serial.print("Enc1: "); Serial.print(encoder1.getCount());
       Serial.print(" Enc2: "); Serial.println(encoder2.getCount());
@@ -156,7 +156,7 @@ void re_trai(int spd, float turnFactor) {
     }
   } else {
     while ((abs(encoder1.getCount()) < req) || (abs(encoder2.getCount()) < req)) {
-      Right_wheel(LUI, spd);
+      Right_wheel(LUI, spd+5);
       Left_wheel(LUI, spd);
       Serial.print("Enc1: "); Serial.print(encoder1.getCount());
       Serial.print(" Enc2: "); Serial.println(encoder2.getCount());
@@ -205,12 +205,12 @@ void dfsDecision(int dist_forward, int dist_left, int dist_right) {
   } else if (dist_right > RIGHT_THRESHOLD) {
     Serial.println("Decision: Turn Right");
     stopMovement();
-    re_phai(90, 1);
+    re_phai(100, 1);
     di_thang(speed);
   } else if (dist_left > LEFT_THRESHOLD) {
     Serial.println("Decision: Turn Left");
     stopMovement();
-    re_trai(90, 1);
+    re_trai(100, 1);
     di_thang(speed);
   } else {
     if (!cellStack.empty()) {
@@ -228,7 +228,7 @@ void dfsDecision(int dist_forward, int dist_left, int dist_right) {
       else if (dy > 0) desired = 0;
       else desired = 2;
       while (currentDirection != desired) {
-        re_phai(90, 1);
+        re_phai(100, 1);
       }
       di_thang(speed);
     } else {
