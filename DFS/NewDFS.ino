@@ -117,27 +117,55 @@ void re_phai(int spd, float turnFactor) {
   encoder1.clearCount();
   encoder2.clearCount();
   float req = TURN_TICKS_90 * turnFactor;
-  while ( (abs(encoder1.getCount()) < req) || (abs(encoder2.getCount()) < req) ) {
-    Right_wheel(TIEN, spd);
-    Left_wheel(TIEN, spd);
-    delayMicroseconds(100);
+  if (turnFactor == 2) {
+    while (abs(encoder1.getCount()) < 660 || abs(encoder2.getCount()) < 660) {
+        Right_wheel(TIEN, speed);
+        Left_wheel(TIEN, speed);
+
+        Serial.print("Enc1: "); Serial.print(encoder1.getCount());
+        Serial.print(" Enc2: "); Serial.println(encoder2.getCount());
+
+        delayMicroseconds(100);
+    }
+  } else {
+    while ((abs(encoder1.getCount()) < req) || (abs(encoder2.getCount()) < req)) {
+      Left_wheel(TIEN, spd);
+      Right_wheel(TIEN, spd);
+      Serial.print("Enc1: "); Serial.print(encoder1.getCount());
+        Serial.print(" Enc2: "); Serial.println(encoder2.getCount());
+      delayMicroseconds(100);
+    }
   }
   stopMovement();
+  currentDirection = (currentDirection + (int)turnFactor) % 4;
 }
+
 void re_trai(int spd, float turnFactor) {
   encoder1.setCount(0);
   encoder2.setCount(0);
   encoder1.clearCount();
   encoder2.clearCount();
   float req = TURN_TICKS_90 * turnFactor;
-  while ( (abs(encoder1.getCount()) < req) || (abs(encoder2.getCount()) < req) ) {
-    Right_wheel(LUI, spd);
-    Left_wheel(LUI, spd);
-    delayMicroseconds(100);
+  if (turnFactor == 2) {
+     while (abs(encoder1.getCount()) < 660 || abs(encoder2.getCount()) < 660) {
+      Right_wheel(LUI, spd);
+      Left_wheel(LUI, spd);
+      Serial.print("Enc1: "); Serial.print(encoder1.getCount());
+      Serial.print(" Enc2: "); Serial.println(encoder2.getCount());
+      delayMicroseconds(100);
+    }
+  } else {
+    while ((abs(encoder1.getCount()) < req) || (abs(encoder2.getCount()) < req)) {
+      Right_wheel(LUI, spd);
+      Left_wheel(LUI, spd);
+      Serial.print("Enc1: "); Serial.print(encoder1.getCount());
+      Serial.print(" Enc2: "); Serial.println(encoder2.getCount());
+      delayMicroseconds(100);
+    }
   }
   stopMovement();
+  currentDirection = (currentDirection + (int)turnFactor) % 4;
 }
-
 // ================ Update Position ================
 // Khi đi thẳng, cập nhật vị trí dựa trên trung bình encoder.
 void updateRobotPosition() {
