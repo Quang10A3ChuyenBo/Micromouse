@@ -222,55 +222,93 @@ void dfsDecision(int dist_forward, int dist_left, int dist_right) {
     // delay(100);
   }
   
-  if (dist_forward > FORWARD_THRESHOLD) {
-    // display.println("Decision: Move Forward");
-    di_thang(speed);
-    // display.display();
-  } else if (dist_right > RIGHT_THRESHOLD) {
-    // display.println("Decision: Turn Right");
-    stopMovement();
-    delay(25);
-    re_phai(90, 1);
-    // display.display();
-  } else if (dist_left > LEFT_THRESHOLD) {
-    // display.println("Decision: Turn Left");
-    stopMovement();
-    delay(25);
-    re_trai(90, 1);
-    // display.display();
-  }else if (dist_forward <= FORWARD_THRESHOLD && dist_right <= RIGHT_THRESHOLD && dist_left <= LEFT_THRESHOLD) {
-    // display.println("Turn back");
-    stopMovement();
-    delay(25);
-    quay_lai(90, 1);
-    delay(25);
-    di_lui(speed);
-    // display.display();
-  } else {
-    if (!cellStack.empty()) {
-      auto prevCell = cellStack.top();
-      cellStack.pop();
-      // display.print("Backtracking to cell: ");
-      // display.print(prevCell.first);
-      // display.print(", ");
-      // display.println(prevCell.second);
-      maze[currentCellX][currentCellY].visited = true;
-
-      // display.println("Turn back");
+  void dfsDecision(int dist_forward, int dist_left, int dist_right) {
+  // Tính cell hiện tại (với offset 1200 mm)
+  int cellX = (int)((robotX + 1200) / CELL_SIZE);
+  int cellY = (int)((robotY + 1200) / CELL_SIZE);
+  
+  // Nếu robot bước vào cell mới, lưu cell cũ vào stack và cập nhật current cell
+  if (cellX != currentCellX || cellY != currentCellY) {
+    if (currentCellX != -1 && currentCellY != -1) {
+      cellStack.push({currentCellX, currentCellY});
+    }
+    currentCellX = cellX;
+    currentCellY = cellY;
+    maze[cellX][cellY].visited = true;
+    maze[cellX][cellY].order = ++cellOrder;
+    
+    // In ra OLED: hiển thị cell và order (để kiểm tra)
+    display.clearDisplay();
+    display.setTextSize(2);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0, 0);
+    display.print("Cell: ");
+    display.print(cellX);
+    display.print(",");
+    display.println(cellY);
+    display.print("Order: ");
+    display.println(cellOrder);
+    display.display();
+    delay(100);
+  }
+  
+  // Kiểm tra các hướng khả thi từ cell hiện tại theo sensor
+  bool canForward = (dist_forward > FORWARD_THRESHOLD);
+  bool canRight   = (dist_right > RIGHT_THRESHOLD);
+  bool canLeft    = (dist_left > LEFT_THRESHOLD);
+  
+  if (canForward || canRight || canLeft) {
+    if (canForward && (dist_forward >= dist_right) && (dist_forward >= dist_left)) {
+      Serial.println("Decision: Move Forward");
+      di_thang(speed);
+    }
+    else if (canRight && (dist_right >= dist_left)) {
+      Serial.println("Decision: Turn Right");
       stopMovement();
       delay(25);
-      quay_lai(90, 1);
+      re_phai(100, 1);
+    }
+    else if (canLeft) {
+      Serial.println("Decision: Turn Left");
+      stopMovement();
       delay(25);
-      di_lui(speed);
-      // display.display();
+      re_trai(100, 1);
+    }
+  } 
+  else {
+    // Không có hướng khả thi, tiến hành backtracking dựa vào cell order.
+    Serial.println("No available move; attempting backtracking...");
+    bool foundCandidate = false;
+    std::pair<int,int> candidate;
+    while (!cellStack.empty()) {
+      candidate = cellStack.top();
+      cellStack.pop();
+      // Chọn candidate nếu order của candidate nhỏ hơn (cũ hơn) cell hiện tại
+      if (maze[candidate.first][candidate.second].order < maze[currentCellX][currentCellY].order) {
+        foundCandidate = true;
+        break;
+      }
+    }
+    if (foundCandidate) {
+      Serial.print("Backtracking to cell: ");
+      Serial.print(candidate.first);
+      Serial.print(", ");
+      Serial.println(candidate.second);
+      // Cập nhật current cell về candidate backtracked
+      currentCellX = candidate.first;
+      currentCellY = candidate.second;
+      // Quay lại 180° rồi di chuyển lùi để rời khỏi cell cũ
+      quay_lai(100, 1);  // Hàm quay lại 180° đã được định nghĩa
+      di_lui(speed);     // Di chuyển lùi để đảm bảo rời khỏi cell hiện tại
     }
     else {
-      // display.println("No available move; moving forward.");
+      Serial.println("No candidate for backtracking; moving forward.");
       di_thang(speed);
-      // display.display();
     }
   }
 }
+
+
 
 void setup() {
   Serial.begin(115200);
